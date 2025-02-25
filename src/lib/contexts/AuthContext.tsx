@@ -1,185 +1,248 @@
 // src/lib/contexts/AuthContext.tsx
-'use client'
+'use client';
 
-import { createContext, useContext, useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
-import type { AuthError, User, Session } from '@supabase/supabase-js'
-import { AuthService } from '../services/authService'
+import { createContext, useContext, useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import type { AuthError, User, Session } from '@supabase/supabase-js';
+import {
+  signIn,
+  signUp,
+  signOut,
+  getSession,
+  getUser,
+  resetPassword,
+  updatePassword,
+} from '../services/authService';
 
 interface AuthState {
-  user: User | null
-  session: Session | null
-  isLoading: boolean
+  user: User | null;
+  session: Session | null;
+  isLoading: boolean;
 }
 
-type AuthErrorType = AuthError | null
+type AuthErrorType = AuthError | null;
 
 interface AuthContextType extends AuthState {
-  signIn: (credentials: { email: string; password: string }) => Promise<{ error: AuthErrorType }>
-  signUp: (credentials: { 
-    email: string
-    password: string
-    full_name: string
-    organization_name?: string 
-  }) => Promise<{ error: AuthErrorType }>
-  signOut: () => Promise<{ error: AuthErrorType }>
-  resetPassword: (email: string) => Promise<{ error: AuthErrorType }>
-  updatePassword: (newPassword: string) => Promise<{ error: AuthErrorType }>
+  signIn: (credentials: { email: string; password: string }) => Promise<{ error: AuthErrorType }>;
+  signUp: (credentials: {
+    email: string;
+    password: string;
+    full_name: string;
+    organization_name?: string;
+  }) => Promise<{ error: AuthErrorType }>;
+  signOut: () => Promise<{ error: AuthErrorType }>;
+  resetPassword: (email: string) => Promise<{ error: AuthErrorType }>;
+  updatePassword: (newPassword: string) => Promise<{ error: AuthErrorType }>;
 }
 
 // Create the context
-const AuthContext = createContext<AuthContextType | undefined>(undefined)
-
-// Create the auth service instance
-const authService = new AuthService()
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 // Provider component
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const router = useRouter()
+  const router = useRouter();
   const [state, setState] = useState<AuthState>({
     user: null,
     session: null,
     isLoading: true,
-  })
+  });
 
   useEffect(() => {
+    console.log('Auth context initializing');
+    
     const initializeAuth = async () => {
       try {
-        const { data, error: sessionError } = await authService.getSession()
-        if (sessionError) throw sessionError
+        console.log('Fetching auth session...');
+        const { data, error: sessionError } = await getSession();
+        
+        if (sessionError) {
+          console.error('Session error:', sessionError);
+          throw sessionError;
+        }
+
+        console.log('Session data:', data);
 
         if (data?.session) {
-          const { data: userData, error: userError } = await authService.getUser()
-          if (userError) throw userError
+          console.log('Session found, fetching user...');
+          const { data: userData, error: userError } = await getUser();
+          
+          if (userError) {
+            console.error('User error:', userError);
+            throw userError;
+          }
+
+          console.log('User data:', userData);
 
           setState({
             user: userData.user,
             session: data.session,
             isLoading: false,
-          })
+          });
+          console.log('Auth state updated with user');
         } else {
-          setState(prev => ({ ...prev, isLoading: false }))
+          console.log('No session found, updating loading state');
+          setState((prev) => ({ ...prev, isLoading: false }));
         }
       } catch (error) {
-        console.error('Auth initialization error:', error)
-        setState(prev => ({ ...prev, isLoading: false }))
+        console.error('Auth initialization error:', error);
+        setState((prev) => ({ ...prev, isLoading: false }));
       }
-    }
+    };
 
-    initializeAuth()
-  }, [])
+    initializeAuth();
+  }, []);
 
-  const signIn = async ({ email, password }: { email: string; password: string }) => {
+  const handleSignIn = async ({ email, password }: { email: string; password: string }) => {
     try {
-      const { data, error } = await authService.signIn({ email, password })
-      if (error) throw error
+      console.log('Attempting sign in for:', email);
+      const { data, error } = await signIn({ email, password });
+      
+      if (error) {
+        console.error('Sign in error:', error);
+        throw error;
+      }
 
       if (data?.session) {
+        console.log('Sign in successful, updating state');
         setState({
           user: data.session.user,
           session: data.session,
           isLoading: false,
-        })
-        router.push('/dashboard')
+        });
+        console.log('Redirecting to dashboard...');
+        router.push('/dashboard');
       }
-      return { error: null }
+      return { error: null };
     } catch (error) {
-      return { error: error as AuthError }
+      console.error('Sign in exception:', error);
+      return { error: error as AuthError };
     }
-  }
+  };
 
-  const signUp = async ({ 
-    email, 
-    password, 
-    full_name, 
-    organization_name 
-  }: { 
-    email: string
-    password: string
-    full_name: string
-    organization_name?: string 
+  const handleSignUp = async ({
+    email,
+    password,
+    full_name,
+    organization_name,
+  }: {
+    email: string;
+    password: string;
+    full_name: string;
+    organization_name?: string;
   }) => {
     try {
-      const { data, error } = await authService.signUp({ 
-        email, 
-        password, 
-        full_name, 
-        organization_name 
-      })
-      if (error) throw error
+      console.log('Attempting sign up for:', email);
+      const { data, error } = await signUp({
+        email,
+        password,
+        full_name,
+        organization_name,
+      });
+      
+      if (error) {
+        console.error('Sign up error:', error);
+        throw error;
+      }
+
+      console.log('Sign up response:', data);
 
       if (data?.session) {
+        console.log('Sign up successful with session, updating state');
         setState({
           user: data.session.user,
           session: data.session,
           isLoading: false,
-        })
-        router.push('/dashboard')
+        });
+        console.log('Redirecting to dashboard...');
+        router.push('/dashboard');
+      } else {
+        console.log('Sign up successful, email confirmation may be required');
       }
-      return { error: null }
+      return { error: null };
     } catch (error) {
-      return { error: error as AuthError }
+      console.error('Sign up exception:', error);
+      return { error: error as AuthError };
     }
-  }
+  };
 
-  const signOut = async () => {
+  const handleSignOut = async () => {
     try {
-      const { error } = await authService.signOut()
-      if (error) throw error
+      console.log('Attempting sign out');
+      const { error } = await signOut();
+      
+      if (error) {
+        console.error('Sign out error:', error);
+        throw error;
+      }
 
+      console.log('Sign out successful, clearing state');
       setState({
         user: null,
         session: null,
         isLoading: false,
-      })
-      router.push('/auth/login')
-      return { error: null }
+      });
+      console.log('Redirecting to login...');
+      router.push('/auth/login');
+      return { error: null };
     } catch (error) {
-      return { error: error as AuthError }
+      console.error('Sign out exception:', error);
+      return { error: error as AuthError };
     }
-  }
+  };
 
-  const resetPassword = async (email: string) => {
+  const handleResetPassword = async (email: string) => {
     try {
-      const { error } = await authService.resetPassword(email)
-      if (error) throw error
-      return { error: null }
+      console.log('Attempting password reset for:', email);
+      const { error } = await resetPassword(email);
+      
+      if (error) {
+        console.error('Password reset error:', error);
+        throw error;
+      }
+      
+      console.log('Password reset email sent');
+      return { error: null };
     } catch (error) {
-      return { error: error as AuthError }
+      console.error('Password reset exception:', error);
+      return { error: error as AuthError };
     }
-  }
+  };
 
-  const updatePassword = async (newPassword: string) => {
+  const handleUpdatePassword = async (newPassword: string) => {
     try {
-      const { error } = await authService.updatePassword(newPassword)
-      if (error) throw error
-      return { error: null }
+      console.log('Attempting password update');
+      const { error } = await updatePassword(newPassword);
+      
+      if (error) {
+        console.error('Password update error:', error);
+        throw error;
+      }
+      
+      console.log('Password updated successfully');
+      return { error: null };
     } catch (error) {
-      return { error: error as AuthError }
+      console.error('Password update exception:', error);
+      return { error: error as AuthError };
     }
-  }
+  };
 
   const value = {
     ...state,
-    signIn,
-    signUp,
-    signOut,
-    resetPassword,
-    updatePassword,
-  }
+    signIn: handleSignIn,
+    signUp: handleSignUp,
+    signOut: handleSignOut,
+    resetPassword: handleResetPassword,
+    updatePassword: handleUpdatePassword,
+  };
 
-  return (
-    <AuthContext.Provider value={value}>
-      {children}
-    </AuthContext.Provider>
-  )
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
 // Export the useAuth hook
 export function useAuth() {
-  const context = useContext(AuthContext)
+  const context = useContext(AuthContext);
   if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider')
+    throw new Error('useAuth must be used within an AuthProvider');
   }
-  return context
+  return context;
 }

@@ -1,9 +1,26 @@
 // src/lib/services/authService.ts
+'use server';
+
 import { createClient } from '@supabase/supabase-js';
 import type { AuthResponse } from '@supabase/supabase-js';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+// Validate environment variables
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+const appUrl = process.env.NEXT_PUBLIC_APP_URL;
+
+if (!supabaseUrl || !supabaseAnonKey) {
+  throw new Error(`
+    Missing Supabase environment variables!
+    Add these to your .env.local file:
+
+    NEXT_PUBLIC_SUPABASE_URL=your-supabase-url
+    NEXT_PUBLIC_SUPABASE_ANON_KEY=your-supabase-anon-key
+    NEXT_PUBLIC_APP_URL=your-app-url (e.g. http://localhost:3001)
+  `);
+}
+
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 interface SignUpCredentials {
   email: string;
@@ -17,52 +34,45 @@ interface SignInCredentials {
   password: string;
 }
 
-export class AuthService {
-  private supabase;
+export async function signIn(credentials: SignInCredentials): Promise<AuthResponse> {
+  return supabase.auth.signInWithPassword(credentials);
+}
 
-  constructor() {
-    this.supabase = createClient(supabaseUrl, supabaseAnonKey);
-  }
-
-  async signIn(credentials: SignInCredentials): Promise<AuthResponse> {
-    return await this.supabase.auth.signInWithPassword(credentials);
-  }
-
-  async signUp(credentials: SignUpCredentials): Promise<AuthResponse> {
-    const { email, password, full_name, organization_name } = credentials;
-    return await this.supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: {
-          full_name,
-          organization_name,
-        },
+export async function signUp(credentials: SignUpCredentials): Promise<AuthResponse> {
+  const { email, password, full_name, organization_name } = credentials;
+  return supabase.auth.signUp({
+    email,
+    password,
+    options: {
+      data: {
+        full_name,
+        organization_name,
       },
-    });
-  }
+    },
+  });
+}
 
-  async signOut() {
-    return await this.supabase.auth.signOut();
-  }
+export async function signOut() {
+  return supabase.auth.signOut();
+}
 
-  async getSession() {
-    return await this.supabase.auth.getSession();
-  }
+export async function getSession() {
+  return supabase.auth.getSession();
+}
 
-  async getUser() {
-    return await this.supabase.auth.getUser();
-  }
+export async function getUser() {
+  return supabase.auth.getUser();
+}
 
-  async resetPassword(email: string) {
-    return await this.supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/reset-password`,
-    });
-  }
+export async function resetPassword(email: string) {
+  // Use environment variable instead of window.location
+  return supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: `${appUrl}/reset-password`,
+  });
+}
 
-  async updatePassword(newPassword: string) {
-    return await this.supabase.auth.updateUser({
-      password: newPassword,
-    });
-  }
+export async function updatePassword(newPassword: string) {
+  return supabase.auth.updateUser({
+    password: newPassword,
+  });
 }
