@@ -1,4 +1,5 @@
-import { createServerClient, type CookieOptions } from '@supabase/ssr'
+import { createServerClient } from '@supabase/ssr'
+import type { CookieOptions } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
 export const config = {
@@ -50,6 +51,7 @@ export async function middleware(request: NextRequest) {
 
     // Define auth pages
     const isAuthPage = [
+      '/auth/login',
       '/login',
       '/register',
       '/auth/register'
