@@ -5,6 +5,14 @@ import animatePlugin from "tailwindcss-animate"
 const config: Config = {
   darkMode: ["class"],
   content: ["./src/**/*.{js,ts,jsx,tsx}"],
+  safelist: [
+    'text-red-500',
+    'text-blue-500',
+    'text-green-500',
+    'text-purple-500',
+    'text-gray-500',
+    'text-orange-500',
+  ],
   theme: {
     container: {
       center: true,
