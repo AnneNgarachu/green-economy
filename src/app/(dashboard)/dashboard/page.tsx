@@ -1,6 +1,7 @@
+// src/app/(dashboard)/dashboard/page.tsx
 'use client'
 
-import React from 'react'
+import React, { useState } from 'react'
 import { EnergyUsage, WaterConsumption, MetricsOverview, CarbonFootprint, SustainabilityMetrics } from '@/features/dashboard/components'
 import { DashboardData } from '@/features/dashboard/type'
 import { BarChart, Droplet, Zap, Cloud } from 'lucide-react'
@@ -115,16 +116,59 @@ const dashboardData: DashboardData = {
 };
 
 const DashboardPage: React.FC = () => {
-  const timeRange = "30d"; // Default time range
+  // State for the time range filter
+  const [timeRange, setTimeRange] = useState<"24h" | "7d" | "30d">("30d");
   
   return (
     <div className="p-6">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold">Dashboard Overview</h1>
-        <p className="text-gray-600">Monitoring your sustainability metrics</p>
+      <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-bold">Dashboard Overview</h1>
+          <p className="text-gray-600">Monitoring your sustainability metrics</p>
+        </div>
+        
+        {/* Time Range Filter */}
+        <div className="mt-4 sm:mt-0">
+          <div className="inline-flex rounded-md shadow-sm" role="group">
+            <button
+              type="button"
+              onClick={() => setTimeRange("24h")}
+              className={`px-4 py-2 text-sm font-medium rounded-l-lg ${
+                timeRange === "24h" 
+                  ? "bg-blue-600 text-white" 
+                  : "bg-white text-gray-700 hover:bg-gray-50"
+              } border border-gray-200`}
+            >
+              24 Hours
+            </button>
+            <button
+              type="button"
+              onClick={() => setTimeRange("7d")}
+              className={`px-4 py-2 text-sm font-medium ${
+                timeRange === "7d" 
+                  ? "bg-blue-600 text-white" 
+                  : "bg-white text-gray-700 hover:bg-gray-50"
+              } border-t border-b border-gray-200`}
+            >
+              7 Days
+            </button>
+            <button
+              type="button"
+              onClick={() => setTimeRange("30d")}
+              className={`px-4 py-2 text-sm font-medium rounded-r-lg ${
+                timeRange === "30d" 
+                  ? "bg-blue-600 text-white" 
+                  : "bg-white text-gray-700 hover:bg-gray-50"
+              } border border-gray-200`}
+            >
+              30 Days
+            </button>
+          </div>
+        </div>
       </div>
       
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      {/* Top row - 2 metrics cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
         <EnergyUsage 
           timeRange={timeRange} 
           Icon={Zap} 
@@ -138,7 +182,10 @@ const DashboardPage: React.FC = () => {
           iconColor="text-blue-500"
           metricData={dashboardData.waterConsumption}
         />
-        
+      </div>
+      
+      {/* Bottom row - 2 more metrics cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
         <CarbonFootprint 
           timeRange={timeRange} 
           Icon={Cloud} 
@@ -146,6 +193,16 @@ const DashboardPage: React.FC = () => {
           metricData={dashboardData.carbonFootprint}
         />
         
+        <SustainabilityMetrics 
+          timeRange={timeRange} 
+          Icon={BarChart} 
+          iconColor="text-green-500"
+          metricData={dashboardData.sustainabilityScore}
+        />
+      </div>
+      
+      {/* Performance overview after all 4 cards */}
+      <div>
         <MetricsOverview 
           timeRange={timeRange} 
           data={{
@@ -154,13 +211,6 @@ const DashboardPage: React.FC = () => {
             carbon: dashboardData.carbonFootprint,
             sustainability: dashboardData.sustainabilityScore
           }}
-        />
-        
-        <SustainabilityMetrics 
-          timeRange={timeRange} 
-          Icon={BarChart} 
-          iconColor="text-green-500"
-          metricData={dashboardData.sustainabilityScore}
         />
       </div>
     </div>

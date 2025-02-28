@@ -11,7 +11,7 @@ import {
   CardContent, 
   CardHeader, 
   CardTitle 
-} from '../../../components/ui/Card';
+} from '../../../components/ui/card';
 import { PasswordStrength } from './PasswordStrength';
 import { useAuth } from '../../../lib/contexts/AuthContext';
 

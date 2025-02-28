@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/Label";
 import { Alert, AlertDescription } from "@/components/ui/Alert";
 // Removed Badge import 
 // import { Badge } from "@/components/ui/badge";
-import { Card, CardContent } from "@/components/ui/Card";
+import { Card, CardContent } from "@/components/ui/card";
 // Removed Select components
 // import { 
 //   Select,
@@ -17,7 +17,7 @@ import { Card, CardContent } from "@/components/ui/Card";
 //   SelectTrigger,
 //   SelectValue
 // } from "@/components/ui/select";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/Tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AlertCircle, CheckCircle, Loader2, PlugZap, Settings } from "lucide-react";
 
 interface SystemIntegrationProps {

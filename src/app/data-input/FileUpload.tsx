@@ -2,7 +2,7 @@
 'use client'
 
 import React, { useState } from "react";
-// Fix the supabase import path to match your folder structure
+// Use the working import statement
 import { supabase } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -154,17 +154,21 @@ export const FileUpload: React.FC<FileUploadProps> = ({
         return transformed;
       });
       
-      // In a real implementation, we would save to Supabase
+      // Save to Supabase if it's properly connected
       try {
-        // Simulate Supabase insertion - uncomment when ready to use actual Supabase
-        // const { error: supabaseError } = await supabase
-        //   .from('metrics')
-        //   .insert(transformedData);
-        // 
-        // if (supabaseError) throw new Error(supabaseError.message);
+        // Uncomment below when Supabase is properly set up
+        console.log("Attempting to save to Supabase:", transformedData);
+        
+        const { error: supabaseError } = await supabase
+          .from('metrics')
+          .insert(transformedData);
+        
+        if (supabaseError) {
+          console.error("Supabase error:", supabaseError);
+          throw new Error(supabaseError.message);
+        }
 
-        // For now, just simulate a delay
-        await new Promise(resolve => setTimeout(resolve, 1200));
+        console.log("Successfully saved to Supabase");
         
         setSuccess(true);
         setStep("upload");
@@ -173,15 +177,21 @@ export const FileUpload: React.FC<FileUploadProps> = ({
         setColumns([]);
         setMappings({});
         
-        if (onUploadComplete) onUploadComplete();
+        // Important: Make sure we call the onUploadComplete callback to refresh the Recent Entries
+        if (onUploadComplete) {
+          console.log("Calling onUploadComplete callback");
+          onUploadComplete();
+        }
         
         setTimeout(() => {
           setSuccess(false);
         }, 3000);
       } catch (dbError: any) {
+        console.error("Database error details:", dbError);
         throw new Error(`Database error: ${dbError.message || "Unknown database error"}`);
       }
     } catch (err: any) {
+      console.error("Submit error:", err);
       setError(err instanceof Error ? err.message : "An unknown error occurred");
     } finally {
       setLoading(false);
@@ -218,7 +228,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({
       {step === "upload" && (
         <>
           <div className="space-y-4">
-            <div className="flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-lg p-12 text-center">
+            <div className="flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-lg p-12 text-center bg-gray-50 hover:bg-gray-100 transition-colors">
               <Upload className="h-12 w-12 text-gray-400 mb-4" />
               <h3 className="text-lg font-medium mb-2">Upload your file</h3>
               <p className="text-sm text-gray-500 mb-4">
@@ -240,7 +250,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({
             </div>
 
             {file && (
-              <div className="flex items-center p-4 bg-gray-50 rounded-lg">
+              <div className="flex items-center p-4 bg-gray-50 rounded-lg border border-gray-200">
                 <File className="h-8 w-8 text-blue-500 mr-3" />
                 <div className="flex-1 min-w-0">
                   <p className="font-medium truncate">{file.name}</p>

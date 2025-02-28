@@ -45,7 +45,7 @@ const NavItem = ({ href, children, icon: Icon }: NavItemProps) => {
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
   const handleLogout = async () => {
     try {
@@ -61,9 +61,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <div className="flex min-h-screen bg-gray-100">
       {/* Sidebar */}
       <nav
-        className={`fixed inset-y-0 left-0 w-64 bg-white shadow-lg transform ${
-          isSidebarOpen ? "translate-x-0" : "-translate-x-full"
-        } transition-transform md:translate-x-0 md:static z-50`}
+        className="fixed inset-y-0 left-0 w-64 bg-white shadow-lg transform translate-x-0 md:translate-x-0 md:static z-50"
       >
         <div className="p-4">
           <h1 className="text-2xl font-bold text-green-700">EcoTrack</h1>

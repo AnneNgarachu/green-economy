@@ -1,7 +1,6 @@
-// src/components/layouts/nav/NavLinks.tsx
 'use client'
 
-import { NavItem } from './NavItem'
+import Link from 'next/link';
 import {
   BarChart,
   FileInput,
@@ -12,26 +11,47 @@ import {
 } from "lucide-react"
 
 export const NavLinks = () => {
+  // Define inline styles for each icon
+  const iconStyles = {
+    home: { color: '#ef4444' },
+    dataInput: { color: '#3b82f6' },
+    goals: { color: '#22c55e' },
+    reports: { color: '#a855f7' },
+    settings: { color: '#6b7280' },
+    help: { color: '#f97316' },
+  };
+
   return (
     <div className="flex-1 px-2 py-4 space-y-2">
-      <NavItem href="/dashboard" icon={Home} iconClassName="text-red-500">
-        Home
-      </NavItem>
-      <NavItem href="/data-input" icon={FileInput} iconClassName="text-blue-500">
-        Data Input
-      </NavItem>
-      <NavItem href="/goals" icon={Goal} iconClassName="text-green-500">
-        Goals
-      </NavItem>
-      <NavItem href="/reports" icon={BarChart} iconClassName="text-purple-500">
-        Reports
-      </NavItem>
-      <NavItem href="/settings" icon={Settings} iconClassName="text-gray-500">
-        Settings
-      </NavItem>
-      <NavItem href="/help" icon={HelpCircle} iconClassName="text-orange-500">
-        Help
-      </NavItem>
+      <Link href="/dashboard" className="flex items-center p-2 text-gray-700 rounded-md hover:bg-gray-100">
+        <Home className="w-5 h-5 mr-3" style={iconStyles.home} />
+        <span>Home</span>
+      </Link>
+      
+      <Link href="/data-input" className="flex items-center p-2 text-gray-700 rounded-md hover:bg-gray-100">
+        <FileInput className="w-5 h-5 mr-3" style={iconStyles.dataInput} />
+        <span>Data Input</span>
+      </Link>
+      
+      <Link href="/goals" className="flex items-center p-2 text-gray-700 rounded-md hover:bg-gray-100">
+        <Goal className="w-5 h-5 mr-3" style={iconStyles.goals} />
+        <span>Goals</span>
+      </Link>
+      
+      <Link href="/reports" className="flex items-center p-2 text-gray-700 rounded-md hover:bg-gray-100">
+        <BarChart className="w-5 h-5 mr-3" style={iconStyles.reports} />
+        <span>Reports</span>
+      </Link>
+      
+      <Link href="/settings" className="flex items-center p-2 text-gray-700 rounded-md hover:bg-gray-100">
+        <Settings className="w-5 h-5 mr-3" style={iconStyles.settings} />
+        <span>Settings</span>
+      </Link>
+      
+      <Link href="/help" className="flex items-center p-2 text-gray-700 rounded-md hover:bg-gray-100">
+        <HelpCircle className="w-5 h-5 mr-3" style={iconStyles.help} />
+        <span>Help</span>
+      </Link>
     </div>
   )
 }
