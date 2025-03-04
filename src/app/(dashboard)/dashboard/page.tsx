@@ -5,6 +5,7 @@ import React, { useState } from 'react'
 import { EnergyUsage, WaterConsumption, MetricsOverview, CarbonFootprint, SustainabilityMetrics } from '@/features/dashboard/components'
 import { DashboardData } from '@/features/dashboard/type'
 import { BarChart, Droplet, Zap, Cloud } from 'lucide-react'
+import ErrorBoundary from '@/components/ErrorBoundary'
 
 // Mock data for dashboard
 const dashboardData: DashboardData = {
