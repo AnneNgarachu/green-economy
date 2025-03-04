@@ -140,7 +140,7 @@ export function EnergyUsage({ timeRange, Icon, iconColor, metricData = defaultMe
           <Icon className={`w-6 h-6 ${iconColor}`} />
           <div>
             <h2 className="text-lg font-semibold text-black">Energy Usage</h2>
-            <p className="text-xs text-gray-500">{buildingName}</p>
+            <p className="text-sm text-gray-500">{buildingName}</p>
           </div>
         </div>
         {!isLoading && (
