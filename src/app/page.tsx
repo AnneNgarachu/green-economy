@@ -1,10 +1,6 @@
-// src/app/(dashboard)/dashboard/page.tsx
-import DashboardContent from '@/features/dashboard/DashboardContent';
+// src/app/page.tsx
+import { redirect } from 'next/navigation';
 
-export default function DashboardPage() {
-  return (
-    <main className="min-h-screen bg-gray-50">
-      <DashboardContent />
-    </main>
-  );
+export default function HomePage() {
+  redirect('/dashboard');
 }

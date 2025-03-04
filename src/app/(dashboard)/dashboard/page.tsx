@@ -130,37 +130,37 @@ const DashboardPage: React.FC = () => {
         
         {/* Time Range Filter */}
         <div className="mt-4 sm:mt-0">
-          <div className="inline-flex rounded-md shadow-sm" role="group">
+          <div className="inline-flex rounded-lg overflow-hidden shadow-sm border border-gray-200">
             <button
               type="button"
               onClick={() => setTimeRange("24h")}
-              className={`px-4 py-2 text-sm font-medium rounded-l-lg ${
+              className={`px-6 py-2 text-sm font-medium ${
                 timeRange === "24h" 
-                  ? "bg-blue-600 text-white" 
+                  ? "bg-blue-500 text-white" 
                   : "bg-white text-gray-700 hover:bg-gray-50"
-              } border border-gray-200`}
+              }`}
             >
               24 Hours
             </button>
             <button
               type="button"
               onClick={() => setTimeRange("7d")}
-              className={`px-4 py-2 text-sm font-medium ${
+              className={`px-6 py-2 text-sm font-medium border-x border-gray-200 ${
                 timeRange === "7d" 
-                  ? "bg-blue-600 text-white" 
+                  ? "bg-blue-500 text-white" 
                   : "bg-white text-gray-700 hover:bg-gray-50"
-              } border-t border-b border-gray-200`}
+              }`}
             >
               7 Days
             </button>
             <button
               type="button"
               onClick={() => setTimeRange("30d")}
-              className={`px-4 py-2 text-sm font-medium rounded-r-lg ${
+              className={`px-6 py-2 text-sm font-medium ${
                 timeRange === "30d" 
-                  ? "bg-blue-600 text-white" 
+                  ? "bg-blue-500 text-white" 
                   : "bg-white text-gray-700 hover:bg-gray-50"
-              } border border-gray-200`}
+              }`}
             >
               30 Days
             </button>
