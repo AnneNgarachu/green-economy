@@ -5,7 +5,7 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Alert, AlertDescription } from '@/components/ui/Alert'
 import { Input } from '@/components/ui/Input'
 import { Button } from '@/components/ui/Button'
-import { useAuth } from '@/lib/contexts/AuthContext'
+import { useAuth } from '@/hooks/useAuth'
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('')

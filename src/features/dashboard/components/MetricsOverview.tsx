@@ -1,6 +1,6 @@
+// src/features/dashboard/components/MetricsOverview.tsx
 'use client'
 
-// src/features/dashboard/components/MetricsOverview.tsx
 import React, { useState, useEffect } from 'react';
 import { Line } from "react-chartjs-2";
 import { BarChart, Loader2 } from 'lucide-react';
@@ -74,7 +74,7 @@ const chartOptions: ChartOptions<'line'> = {
   }
 };
 
-export function MetricsOverview({ timeRange, className = '' }: MetricsOverviewProps) {
+export function MetricsOverview({ timeRange, className = '', building = 'All Buildings' }: MetricsOverviewProps) {
   const [chartData, setChartData] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -194,7 +194,7 @@ export function MetricsOverview({ timeRange, className = '' }: MetricsOverviewPr
           const { data: electricityData, error: electricityError } = await supabase
             .from('metrics')
             .select('*')
-            .eq('facility', 'Talbot House')
+            .eq(building !== 'All Buildings' ? 'facility' : 'metric_name', building !== 'All Buildings' ? building : METRICS.ELECTRICITY)
             .eq('metric_name', METRICS.ELECTRICITY)
             .gte('reading_date', startDate)
             .lte('reading_date', endDate)
@@ -206,7 +206,7 @@ export function MetricsOverview({ timeRange, className = '' }: MetricsOverviewPr
           const { data: waterData, error: waterError } = await supabase
             .from('metrics')
             .select('*')
-            .eq('facility', 'Talbot House')
+            .eq(building !== 'All Buildings' ? 'facility' : 'metric_name', building !== 'All Buildings' ? building : METRICS.WATER)
             .eq('metric_name', METRICS.WATER)
             .gte('reading_date', startDate)
             .lte('reading_date', endDate)
@@ -219,109 +219,113 @@ export function MetricsOverview({ timeRange, className = '' }: MetricsOverviewPr
               (waterData && waterData.length > 0)) {
             
             // Process electricity data
-            let electricityValues: number[] = [];
+            let electricityValues: number[] = Array(labels.length).fill(0);
             
-            if (timeRange === "24h") {
-              // Group hourly
-              const hourlyData: Record<string, number> = {};
-              electricityData?.forEach(item => {
-                const date = new Date(item.reading_date);
-                const hour = Math.floor(date.getHours() / 3) * 3; // Group by 3 hours
-                const key = `${hour.toString().padStart(2, '0')}:00`;
+            if (electricityData && electricityData.length > 0) {
+              if (timeRange === "24h") {
+                // Group hourly
+                const hourlyData: Record<string, number> = {};
+                electricityData.forEach(item => {
+                  const date = new Date(item.reading_date);
+                  const hour = Math.floor(date.getHours() / 3) * 3; // Group by 3 hours
+                  const key = `${hour}`;
+                  
+                  if (!hourlyData[key]) hourlyData[key] = 0;
+                  hourlyData[key] += item.value;
+                });
                 
-                if (!hourlyData[key]) hourlyData[key] = 0;
-                hourlyData[key] += item.value;
-              });
-              
-              // Map to the labels
-              electricityValues = labels.map(label => {
-                const hour = label.includes('AM') 
-                  ? parseInt(label.replace('AM', '')) % 12
-                  : ((parseInt(label.replace('PM', '')) % 12) + 12);
-                const key = `${hour.toString().padStart(2, '0')}:00`;
-                return hourlyData[key] || 0;
-              });
-            } else if (timeRange === "7d") {
-              // Group by day
-              const dailyData: Record<string, number> = {};
-              electricityData?.forEach(item => {
-                const date = new Date(item.reading_date);
-                const dayName = date.toLocaleDateString('en-US', { weekday: 'short' });
+                // Map to the labels
+                electricityValues = labels.map((label, index) => {
+                  const hour = label.includes('AM') 
+                    ? parseInt(label.replace('AM', '')) % 12
+                    : ((parseInt(label.replace('PM', '')) % 12) + 12);
+                  
+                  const key = `${Math.floor(hour / 3) * 3}`;
+                  return hourlyData[key] || 0;
+                });
+              } else if (timeRange === "7d") {
+                // Group by day
+                const dailyData: Record<string, number> = {};
+                electricityData.forEach(item => {
+                  const date = new Date(item.reading_date);
+                  const dayName = date.toLocaleDateString('en-US', { weekday: 'short' });
+                  
+                  if (!dailyData[dayName]) dailyData[dayName] = 0;
+                  dailyData[dayName] += item.value;
+                });
                 
-                if (!dailyData[dayName]) dailyData[dayName] = 0;
-                dailyData[dayName] += item.value;
-              });
-              
-              // Map to the labels
-              electricityValues = labels.map(day => dailyData[day] || 0);
-            } else { // 30d
-              // Split into 4 weeks
-              const weeklyData: number[] = [0, 0, 0, 0];
-              electricityData?.forEach(item => {
-                const date = new Date(item.reading_date);
-                const today = new Date();
-                const dayDiff = Math.floor((today.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
+                // Map to the labels
+                electricityValues = labels.map(day => dailyData[day] || 0);
+              } else { // 30d
+                // Split into 4 weeks
+                const weeklyData: number[] = [0, 0, 0, 0];
+                electricityData.forEach(item => {
+                  const date = new Date(item.reading_date);
+                  const today = new Date();
+                  const dayDiff = Math.floor((today.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
+                  
+                  if (dayDiff < 7) weeklyData[3] += item.value;
+                  else if (dayDiff < 14) weeklyData[2] += item.value;
+                  else if (dayDiff < 21) weeklyData[1] += item.value;
+                  else if (dayDiff < 30) weeklyData[0] += item.value;
+                });
                 
-                if (dayDiff < 7) weeklyData[3] += item.value;
-                else if (dayDiff < 14) weeklyData[2] += item.value;
-                else if (dayDiff < 21) weeklyData[1] += item.value;
-                else if (dayDiff < 30) weeklyData[0] += item.value;
-              });
-              
-              electricityValues = weeklyData;
+                electricityValues = weeklyData;
+              }
             }
             
             // Process water data in a similar way
-            let waterValues: number[] = [];
+            let waterValues: number[] = Array(labels.length).fill(0);
             
-            if (timeRange === "24h") {
-              // Group hourly
-              const hourlyData: Record<string, number> = {};
-              waterData?.forEach(item => {
-                const date = new Date(item.reading_date);
-                const hour = Math.floor(date.getHours() / 3) * 3; // Group by 3 hours
-                const key = `${hour.toString().padStart(2, '0')}:00`;
+            if (waterData && waterData.length > 0) {
+              if (timeRange === "24h") {
+                // Group hourly
+                const hourlyData: Record<string, number> = {};
+                waterData.forEach(item => {
+                  const date = new Date(item.reading_date);
+                  const hour = Math.floor(date.getHours() / 3) * 3; // Group by 3 hours
+                  const key = `${hour}`;
+                  
+                  if (!hourlyData[key]) hourlyData[key] = 0;
+                  hourlyData[key] += item.value;
+                });// Map to the labels
+                waterValues = labels.map((label, index) => {
+                  const hour = label.includes('AM') 
+                    ? parseInt(label.replace('AM', '')) % 12
+                    : ((parseInt(label.replace('PM', '')) % 12) + 12);
+                  
+                  const key = `${Math.floor(hour / 3) * 3}`;
+                  return hourlyData[key] || 0;
+                });
+              } else if (timeRange === "7d") {
+                // Group by day
+                const dailyData: Record<string, number> = {};
+                waterData.forEach(item => {
+                  const date = new Date(item.reading_date);
+                  const dayName = date.toLocaleDateString('en-US', { weekday: 'short' });
+                  
+                  if (!dailyData[dayName]) dailyData[dayName] = 0;
+                  dailyData[dayName] += item.value;
+                });
                 
-                if (!hourlyData[key]) hourlyData[key] = 0;
-                hourlyData[key] += item.value;
-              });
-              
-              // Map to the labels
-              waterValues = labels.map(label => {
-                const hour = label.includes('AM') 
-                  ? parseInt(label.replace('AM', '')) % 12
-                  : ((parseInt(label.replace('PM', '')) % 12) + 12);
-                const key = `${hour.toString().padStart(2, '0')}:00`;
-                return hourlyData[key] || 0;
-              });
-            } else if (timeRange === "7d") {
-              // Group by day
-              const dailyData: Record<string, number> = {};
-              waterData?.forEach(item => {
-                const date = new Date(item.reading_date);
-                const dayName = date.toLocaleDateString('en-US', { weekday: 'short' });
+                // Map to the labels
+                waterValues = labels.map(day => dailyData[day] || 0);
+              } else { // 30d
+                // Split into 4 weeks
+                const weeklyData: number[] = [0, 0, 0, 0];
+                waterData.forEach(item => {
+                  const date = new Date(item.reading_date);
+                  const today = new Date();
+                  const dayDiff = Math.floor((today.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
+                  
+                  if (dayDiff < 7) weeklyData[3] += item.value;
+                  else if (dayDiff < 14) weeklyData[2] += item.value;
+                  else if (dayDiff < 21) weeklyData[1] += item.value;
+                  else if (dayDiff < 30) weeklyData[0] += item.value;
+                });
                 
-                if (!dailyData[dayName]) dailyData[dayName] = 0;
-                dailyData[dayName] += item.value;
-              });
-              
-              // Map to the labels
-              waterValues = labels.map(day => dailyData[day] || 0);
-            } else { // 30d
-              // Split into 4 weeks
-              const weeklyData: number[] = [0, 0, 0, 0];
-              waterData?.forEach(item => {
-                const date = new Date(item.reading_date);
-                const today = new Date();
-                const dayDiff = Math.floor((today.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
-                
-                if (dayDiff < 7) weeklyData[3] += item.value;
-                else if (dayDiff < 14) weeklyData[2] += item.value;
-                else if (dayDiff < 21) weeklyData[1] += item.value;
-                else if (dayDiff < 30) weeklyData[0] += item.value;
-              });
-              
-              waterValues = weeklyData;
+                waterValues = weeklyData;
+              }
             }
             
             // Create chart data
@@ -369,7 +373,7 @@ export function MetricsOverview({ timeRange, className = '' }: MetricsOverviewPr
     };
 
     fetchChartData();
-  }, [timeRange]);
+  }, [timeRange, building]);
 
   // If no chart data yet, show loading or use mock data
   if (!chartData && !isLoading) {

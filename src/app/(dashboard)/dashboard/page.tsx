@@ -1,11 +1,15 @@
-// src/app/(dashboard)/dashboard/page.tsx
 'use client'
 
 import React, { useState } from 'react'
-import { EnergyUsage, WaterConsumption, MetricsOverview, CarbonFootprint, SustainabilityMetrics } from '@/features/dashboard/components'
-import { DashboardData } from '@/features/dashboard/type'
+import { 
+  EnergyUsage, 
+  WaterConsumption, 
+  MetricsOverview, 
+  CarbonFootprint, 
+  SustainabilityMetrics 
+} from '@/features/dashboard/components'
+import { DashboardData, TimeRange } from '@/features/dashboard/type'
 import { BarChart, Droplet, Zap, Cloud } from 'lucide-react'
-import ErrorBoundary from '@/components/ErrorBoundary'
 
 // Mock data for dashboard
 const dashboardData: DashboardData = {
@@ -112,13 +116,12 @@ const dashboardData: DashboardData = {
       average: "78/100",
       target: "90/100",
     },
-  },
-  charts: []
+  }
 };
 
 const DashboardPage: React.FC = () => {
   // State for the time range filter
-  const [timeRange, setTimeRange] = useState<"24h" | "7d" | "30d">("30d");
+  const [timeRange, setTimeRange] = useState<TimeRange>("30d");
   
   return (
     <div className="p-6">
@@ -206,12 +209,6 @@ const DashboardPage: React.FC = () => {
       <div>
         <MetricsOverview 
           timeRange={timeRange} 
-          data={{
-            energy: dashboardData.energyUsage,
-            water: dashboardData.waterConsumption,
-            carbon: dashboardData.carbonFootprint,
-            sustainability: dashboardData.sustainabilityScore
-          }}
         />
       </div>
     </div>

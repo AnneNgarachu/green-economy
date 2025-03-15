@@ -6,7 +6,7 @@ import { AlertCircle, Eye, EyeOff } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Alert, AlertDescription } from '@/components/ui/Alert'
-import { useAuth } from '@/lib/contexts/AuthContext'
+import { useAuth } from '@/hooks/useAuth'
 import Link from 'next/link'
 import type { LoginCredentials } from '@/types/auth'
 
@@ -29,10 +29,9 @@ export const LoginForm = () => {
     try {
       const { error } = await signIn(formData)
       if (error) {
-        setErrorMessage('Invalid email or password')
-      } else {
-        router.push('/dashboard')
+        setErrorMessage(error.message || 'Invalid email or password')
       }
+      // No need for else with router.push since your AuthContext handles it
     } catch (error) {
       console.error(error)
       setErrorMessage('An unexpected error occurred')

@@ -13,7 +13,7 @@ import {
   CardTitle 
 } from '../../../components/ui/card';
 import { PasswordStrength } from './PasswordStrength';
-import { useAuth } from '../../../lib/contexts/AuthContext';
+import { useAuth } from '@/hooks/useAuth';
 
 interface FormData {
   password: string;

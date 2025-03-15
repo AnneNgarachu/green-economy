@@ -2,12 +2,12 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { MetricProps, MetricDataByTimeRange } from '@/features/dashboard/type';
+import { MetricProps } from '@/features/dashboard/type';
 import { supabase } from '@/lib/supabase/client';
 import { METRICS } from '@/lib/constants';
 import { TrendingDown, TrendingUp, Loader2 } from 'lucide-react';
 
-const defaultMetricData: MetricDataByTimeRange = {
+const defaultMetricData = {
   "24h": {
     current: "85%",
     previous: "82%",
@@ -34,15 +34,22 @@ const defaultMetricData: MetricDataByTimeRange = {
   },
 };
 
-export function SustainabilityMetrics({ timeRange, Icon, iconColor, metricData = defaultMetricData }: MetricProps) {
+export function SustainabilityMetrics({ 
+  timeRange, 
+  Icon, 
+  iconColor, 
+  metricData = defaultMetricData,
+  building = 'All Buildings'
+}: MetricProps) {
   const [data, setData] = useState(metricData[timeRange]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [buildingName, setBuildingName] = useState("All Buildings");
+  const [buildingName, setBuildingName] = useState(building);
 
   useEffect(() => {
     // Reset to the provided metric data first
     setData(metricData[timeRange]);
+    setBuildingName(building);
     
     const fetchSustainabilityData = async () => {
       setIsLoading(true);
@@ -68,74 +75,73 @@ export function SustainabilityMetrics({ timeRange, Icon, iconColor, metricData =
           startDate = oneMonthAgo.toISOString().split('T')[0];
         }
 
-        // For sustainability score, we'd ideally combine multiple metrics
-        // But for now, we'll simulate a calculation based on electricity efficiency
-        try {
-          // Get electricity usage for Talbot House
-          const { data: electricityData, error: electricityError } = await supabase
-            .from('metrics')
-            .select('*')
-            .eq('facility', 'Talbot House')
-            .eq('metric_name', METRICS.ELECTRICITY)
-            .gte('reading_date', startDate)
-            .lte('reading_date', endDate)
-            .order('reading_date', { ascending: true });
+        // For sustainability score, we'll combine multiple metrics
+        if (building !== 'All Buildings') {
+          try {
+            // Get electricity usage for the building
+            const { data: electricityData, error: electricityError } = await supabase
+              .from('metrics')
+              .select('*')
+              .eq('facility', building)
+              .eq('metric_name', METRICS.ELECTRICITY)
+              .gte('reading_date', startDate)
+              .lte('reading_date', endDate)
+              .order('reading_date', { ascending: true });
 
-          if (electricityError) throw electricityError;
-          
-          // Try to get targets or benchmarks (this would be stored in a different table in production)
-          // For now, we'll use hardcoded targets
-          const electricityTarget = 5000; // kWh per day
-          
-          if (electricityData && electricityData.length > 0) {
-            // Calculate total consumption
-            const totalConsumption = electricityData.reduce((sum, item) => sum + item.value, 0);
+            if (electricityError) throw electricityError;
             
-            // Calculate theoretical perfect consumption (target × days)
-            const days = (new Date(endDate).getTime() - new Date(startDate).getTime()) / (1000 * 60 * 60 * 24) + 1;
-            const perfectConsumption = electricityTarget * days;
+            // Try to get targets or benchmarks (this would be stored in a different table in production)
+            // For now, we'll use hardcoded targets
+            const electricityTarget = 5000; // kWh per day
             
-            // Calculate score as ratio of target to actual (capped at 100%)
-            const rawScore = Math.min(1, perfectConsumption / totalConsumption);
-            const scorePercentage = Math.round(rawScore * 100);
-            
-            // Calculate previous period for comparison
-            const halfwayIndex = Math.floor(electricityData.length / 2);
-            const currentPeriodData = electricityData.slice(halfwayIndex);
-            const previousPeriodData = electricityData.slice(0, halfwayIndex);
-            
-            const currentConsumption = currentPeriodData.reduce((sum, item) => sum + item.value, 0);
-            const previousConsumption = previousPeriodData.reduce((sum, item) => sum + item.value, 0);
-            
-            // Higher consumption means lower score, so we use the inverse for the score
-            const currentScore = previousConsumption > 0 ? Math.min(1, (perfectConsumption / 2) / currentConsumption) : 0;
-            const previousScore = previousConsumption > 0 ? Math.min(1, (perfectConsumption / 2) / previousConsumption) : 0;
-            
-            const currentScorePercentage = Math.round(currentScore * 100);
-            const previousScorePercentage = Math.round(previousScore * 100);
-            
-            // Calculate percent change
-            const percentChange = previousScorePercentage !== 0 
-              ? ((currentScorePercentage - previousScorePercentage) / previousScorePercentage * 100).toFixed(1)
-              : "+0.0";
+            if (electricityData && electricityData.length > 0) {
+              // Calculate total consumption
+              const totalConsumption = electricityData.reduce((sum, item) => sum + item.value, 0);
               
-            // Format the data for display
-            const updatedData = {
-              current: `${scorePercentage}%`,
-              previous: `${previousScorePercentage}%`,
-              change: `${percentChange}%`,
-              peak: metricData[timeRange].peak, // Keep mock data for peak
-              average: `${Math.round((currentScorePercentage + previousScorePercentage) / 2)}%`,
-              target: metricData[timeRange].target, // Keep existing target
-            };
-            
-            setData(updatedData);
-            setBuildingName("Talbot House");
+              // Calculate theoretical perfect consumption (target × days)
+              const days = (new Date(endDate).getTime() - new Date(startDate).getTime()) / (1000 * 60 * 60 * 24) + 1;
+              const perfectConsumption = electricityTarget * days;
+              
+              // Calculate score as ratio of target to actual (capped at 100%)
+              const rawScore = Math.min(1, perfectConsumption / totalConsumption);
+              const scorePercentage = Math.round(rawScore * 100);
+              
+              // Calculate previous period for comparison
+              const halfwayIndex = Math.floor(electricityData.length / 2);
+              const currentPeriodData = electricityData.slice(halfwayIndex);
+              const previousPeriodData = electricityData.slice(0, halfwayIndex);
+              
+              const currentConsumption = currentPeriodData.reduce((sum, item) => sum + item.value, 0);
+              const previousConsumption = previousPeriodData.reduce((sum, item) => sum + item.value, 0);
+              
+              // Higher consumption means lower score, so we use the inverse for the score
+              const currentScore = previousConsumption > 0 ? Math.min(1, (perfectConsumption / 2) / currentConsumption) : 0;
+              const previousScore = previousConsumption > 0 ? Math.min(1, (perfectConsumption / 2) / previousConsumption) : 0;
+              
+              const currentScorePercentage = Math.round(currentScore * 100);
+              const previousScorePercentage = Math.round(previousScore * 100);
+              
+              // Calculate percent change
+              const percentChange = previousScorePercentage !== 0 
+                ? ((currentScorePercentage - previousScorePercentage) / previousScorePercentage * 100).toFixed(1)
+                : "+0.0";
+                
+              // Format the data for display
+              const updatedData = {
+                current: `${scorePercentage}%`,
+                previous: `${previousScorePercentage}%`,
+                change: `${percentChange}%`,
+                peak: metricData[timeRange].peak, // Keep mock data for peak
+                average: `${Math.round((currentScorePercentage + previousScorePercentage) / 2)}%`,
+                target: metricData[timeRange].target, // Keep existing target
+              };
+              
+              setData(updatedData);
+            }
+          } catch (error) {
+            console.error("Supabase error:", error);
+            // If error fetching, we'll just use the default data
           }
-        } catch (error) {
-          console.error("Supabase error:", error);
-          setError("Failed to fetch sustainability data");
-          // Keep using provided metric data if database query fails
         }
       } catch (err) {
         console.error('Failed to load sustainability data:', err);
@@ -146,9 +152,9 @@ export function SustainabilityMetrics({ timeRange, Icon, iconColor, metricData =
     };
 
     fetchSustainabilityData();
-  }, [timeRange, metricData]);
+  }, [timeRange, metricData, building]);
 
-  const isPositiveChange = parseFloat(data.change) > 0;
+  const isPositiveChange = parseFloat(data.change.replace('%', '')) > 0;
 
   return (
     <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200 hover:shadow-md transition-shadow">

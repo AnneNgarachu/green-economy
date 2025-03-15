@@ -1,3 +1,4 @@
+// src/features/dashboard/components/DashboardContent.tsx
 "use client";
 
 import { useState } from "react";
@@ -5,19 +6,22 @@ import {
   Zap,
   Droplets,
   Leaf,
-  Target,
+  Target
 } from 'lucide-react';
-import {
-  EnergyUsage,
-  WaterConsumption,
-  MetricsOverview,
-  CarbonFootprint,
-  SustainabilityMetrics
-} from './components';
+import { EnergyUsage } from './components/EnergyUsage';
+import { WaterConsumption } from './components/WaterConsumption';
+import { MetricsOverview } from './components/MetricsOverview';
+import { CarbonFootprint } from './components/CarbonFootprint';
+import { SustainabilityMetrics } from './components/SustainabilityMetrics';
+import { BuildingSelector } from './components/BuildingSelector';
 import type { TimeRange, MetricDataByTimeRange } from './type';
+import { FacilityName } from '@/lib/constants';
 
 export default function DashboardContent() {
   const [selectedTimeRange, setSelectedTimeRange] = useState<TimeRange>("24h");
+  const [selectedBuilding, setSelectedBuilding] = useState<FacilityName | 'All Buildings'>(
+    'All Buildings'
+  );
 
   // Example dynamic data for EnergyUsage
   const energyUsageData: MetricDataByTimeRange = {
@@ -134,27 +138,34 @@ export default function DashboardContent() {
   return (
     <div className="w-full max-w-7xl mx-auto p-6 space-y-8">
       {/* Header Section */}
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col md:flex-row md:justify-between md:items-center space-y-4 md:space-y-0">
         <h1 className="text-2xl font-bold text-black">Sustainability Metrics</h1>
-        <select
-          className="bg-white border border-gray-300 text-black rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent shadow-sm hover:bg-gray-50"
-          value={selectedTimeRange}
-          onChange={(e) => setSelectedTimeRange(e.target.value as TimeRange)}
-        >
-          <option value="24h" className="text-black">Last 24 Hours</option>
-          <option value="7d" className="text-black">Last 7 Days</option>
-          <option value="30d" className="text-black">Last 30 Days</option>
-        </select>
+        <div className="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-4">
+          <BuildingSelector 
+            currentBuilding={selectedBuilding}
+            onChange={setSelectedBuilding}
+          />
+          <select
+            className="bg-white border border-gray-300 text-black rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent shadow-sm hover:bg-gray-50"
+            value={selectedTimeRange}
+            onChange={(e) => setSelectedTimeRange(e.target.value as TimeRange)}
+          >
+            <option value="24h" className="text-black">Last 24 Hours</option>
+            <option value="7d" className="text-black">Last 7 Days</option>
+            <option value="30d" className="text-black">Last 30 Days</option>
+          </select>
+        </div>
       </div>
 
       {/* Metrics Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2">
           <EnergyUsage 
             timeRange={selectedTimeRange} 
             Icon={Zap}
             iconColor="text-yellow-500"
-            metricData={energyUsageData} // Pass dynamic data
+            metricData={energyUsageData}
+            building={selectedBuilding}
           />
         </div>
         <div>
@@ -162,7 +173,8 @@ export default function DashboardContent() {
             timeRange={selectedTimeRange} 
             Icon={Droplets}
             iconColor="text-blue-500"
-            metricData={waterConsumptionData} // Pass dynamic data
+            metricData={waterConsumptionData}
+            building={selectedBuilding}
           />
         </div>
         <div>
@@ -170,7 +182,8 @@ export default function DashboardContent() {
             timeRange={selectedTimeRange} 
             Icon={Leaf}
             iconColor="text-green-500"
-            metricData={carbonFootprintData} // Pass dynamic data
+            metricData={carbonFootprintData}
+            building={selectedBuilding}
           />
         </div>
         <div>
@@ -178,14 +191,18 @@ export default function DashboardContent() {
             timeRange={selectedTimeRange} 
             Icon={Target}
             iconColor="text-purple-500"
-            metricData={sustainabilityMetricData} // Pass dynamic data
+            metricData={sustainabilityMetricData}
+            building={selectedBuilding}
           />
         </div>
       </div>
 
       {/* Charts Section */}
       <div className="mt-8">
-        <MetricsOverview timeRange={selectedTimeRange} />
+        <MetricsOverview 
+          timeRange={selectedTimeRange}
+          building={selectedBuilding}
+        />
       </div>
     </div>
   );

@@ -1,9 +1,9 @@
-// src/app/layout.tsx
 'use client'
 
 import React, { useState, useEffect } from 'react'
 import { usePathname } from 'next/navigation'
-import { AuthProvider, useAuth } from '@/lib/contexts/AuthContext'
+import { AuthProvider } from '@/lib/contexts/AuthContext'
+import { useAuth } from '@/hooks/useAuth' // Import from the hooks folder instead
 import '@/styles/globals.css'
 import {
   BarChart,
@@ -86,7 +86,7 @@ const ContentWrapper = ({
 // This component safely uses the auth hook
 function AuthenticatedContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
-  const isAuthPage = pathname?.startsWith('/auth') || pathname === '/login' || pathname === '/register'
+  const isAuthPage = pathname?.startsWith('/auth') || pathname === '/login' || pathname === '/register' || pathname === '/forgot-password' || pathname === '/reset-password'
   const [isClient, setIsClient] = useState(false)
   const auth = useAuth() // Always call the hook unconditionally at the top level
   

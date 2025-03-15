@@ -2,12 +2,30 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { MetricProps, MetricDataByTimeRange } from '@/features/dashboard/type';
+import { MetricProps } from '../type';
 import { supabase } from '@/lib/supabase/client';
-import { METRICS } from '@/lib/constants';
+import { METRICS, CARBON_FACTORS } from '@/lib/constants';
 import { TrendingDown, TrendingUp, Loader2 } from 'lucide-react';
+import { isPositiveChange } from '@/lib/utils/index'; // Fixed import path
 
-const defaultMetricData: MetricDataByTimeRange = {
+// Define an interface for the data shape returned from Supabase
+interface MetricRecord {
+  id: number;
+  reading_date: string;
+  facility: string;
+  meter_code: string;
+  meter_name: string;
+  metric_name: string;
+  value: number;
+  unit: string;
+  reading_type: string;
+  source_file?: string | null;
+  notes?: string | null;
+  created_at?: string;
+  updated_at?: string;
+}
+
+const defaultMetricData = {
   "24h": {
     current: "25 tons",
     previous: "25.8 tons",
@@ -34,17 +52,24 @@ const defaultMetricData: MetricDataByTimeRange = {
   },
 };
 
-export function CarbonFootprint({ timeRange, Icon, iconColor, metricData = defaultMetricData }: MetricProps) {
+export function CarbonFootprint({ 
+  timeRange, 
+  Icon, 
+  iconColor, 
+  metricData = defaultMetricData,
+  building = 'All Buildings'
+}: MetricProps) {
   const [data, setData] = useState(metricData[timeRange]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [buildingName, setBuildingName] = useState("All Buildings");
+  const [buildingName, setBuildingName] = useState(building);
 
-  const carbonFactor = 0.233; // kg CO2e per kWh (UK 2023)
+  const carbonFactor = CARBON_FACTORS.ELECTRICITY; // kg CO2e per kWh (UK 2023)
 
   useEffect(() => {
-    // Reset to the provided metric data first
+    // Reset to the provided metric data and current facility
     setData(metricData[timeRange]);
+    setBuildingName(building);
     
     const fetchCarbonData = async () => {
       setIsLoading(true);
@@ -71,66 +96,69 @@ export function CarbonFootprint({ timeRange, Icon, iconColor, metricData = defau
         }
 
         // Try to fetch electricity data for carbon calculation
-        try {
-          const { data: metricsData, error: supabaseError } = await supabase
-            .from('metrics')
-            .select('*')
-            .eq('facility', 'Talbot House')
-            .eq('metric_name', METRICS.ELECTRICITY) // We calculate carbon from electricity
-            .gte('reading_date', startDate)
-            .lte('reading_date', endDate)
-            .order('reading_date', { ascending: true });
+        if (building !== 'All Buildings') {
+          try {
+            const { data: metricsData, error: supabaseError } = await supabase
+              .from('metrics')
+              .select('*')
+              .eq('facility', building)
+              .eq('metric_name', METRICS.ELECTRICITY) // We calculate carbon from electricity
+              .gte('reading_date', startDate)
+              .lte('reading_date', endDate)
+              .order('reading_date', { ascending: true });
 
-          if (supabaseError) throw supabaseError;
+            if (supabaseError) throw supabaseError;
 
-          if (metricsData && metricsData.length > 0) {
-            // Calculate metrics from the data
-            const totalConsumption = metricsData.reduce((sum, item) => sum + item.value, 0);
-            const totalCarbon = totalConsumption * carbonFactor / 1000; // Convert to tons
-            
-            const dailyData = metricsData.reduce((acc, item) => {
-              const date = item.reading_date.split('T')[0];
-              if (!acc[date]) acc[date] = 0;
-              acc[date] += item.value;
-              return acc;
-            }, {} as Record<string, number>);
-            
-            const dailyCarbonValues = Object.values(dailyData).map((val) => (val as number) * carbonFactor / 1000);
-            const peakCarbon = Math.max(...dailyCarbonValues);
-            const avgCarbon = totalCarbon / Object.keys(dailyData).length;
-            
-            // Calculate previous period for comparison
-            const halfwayIndex = Math.floor(metricsData.length / 2);
-            const currentPeriodData = metricsData.slice(halfwayIndex);
-            const previousPeriodData = metricsData.slice(0, halfwayIndex);
-            
-            const currentElectricity = currentPeriodData.reduce((sum, item) => sum + item.value, 0);
-            const previousElectricity = previousPeriodData.reduce((sum, item) => sum + item.value, 0);
-            const currentCarbon = currentElectricity * carbonFactor / 1000;
-            const previousCarbon = previousElectricity * carbonFactor / 1000;
-            
-            // Calculate percent change
-            const percentChange = previousCarbon !== 0 
-              ? ((currentCarbon - previousCarbon) / previousCarbon * 100).toFixed(1)
-              : "0.0";
+            if (metricsData && metricsData.length > 0) {
+              // Cast to our known type to ensure type safety
+              const typedData = metricsData as unknown as MetricRecord[];
               
-            // Format the data for display
-            const updatedData = {
-              current: `${totalCarbon.toFixed(1)} tons`,
-              previous: `${previousCarbon.toFixed(1)} tons`,
-              change: `${percentChange}%`,
-              peak: `${peakCarbon.toFixed(1)} tons`,
-              average: `${avgCarbon.toFixed(1)} tons`,
-              target: metricData[timeRange].target, // Keep existing target
-            };
-            
-            setData(updatedData);
-            setBuildingName("Talbot House");
+              // Calculate metrics from the data
+              const totalConsumption = typedData.reduce((sum, item) => sum + item.value, 0);
+              const totalCarbon = totalConsumption * carbonFactor / 1000; // Convert to tons
+              
+              const dailyData = typedData.reduce((acc, item) => {
+                const date = item.reading_date.split('T')[0];
+                if (!acc[date]) acc[date] = 0;
+                acc[date] += item.value;
+                return acc;
+              }, {} as Record<string, number>);
+              
+              const dailyCarbonValues = Object.values(dailyData).map((val) => val * carbonFactor / 1000);
+              const peakCarbon = Math.max(...dailyCarbonValues);
+              const avgCarbon = totalCarbon / Object.keys(dailyData).length;
+              
+              // Calculate previous period for comparison
+              const halfwayIndex = Math.floor(typedData.length / 2);
+              const currentPeriodData = typedData.slice(halfwayIndex);
+              const previousPeriodData = typedData.slice(0, halfwayIndex);
+              
+              const currentElectricity = currentPeriodData.reduce((sum, item) => sum + item.value, 0);
+              const previousElectricity = previousPeriodData.reduce((sum, item) => sum + item.value, 0);
+              const currentCarbon = currentElectricity * carbonFactor / 1000;
+              const previousCarbon = previousElectricity * carbonFactor / 1000;
+              
+              // Calculate percent change
+              const percentChange = previousCarbon !== 0 
+                ? ((currentCarbon - previousCarbon) / previousCarbon * 100).toFixed(1)
+                : "0.0";
+                
+              // Format the data for display
+              const updatedData = {
+                current: `${totalCarbon.toFixed(1)} tons`,
+                previous: `${previousCarbon.toFixed(1)} tons`,
+                change: `${percentChange.startsWith('-') ? '' : '+'}${percentChange}%`,
+                peak: `${peakCarbon.toFixed(1)} tons`,
+                average: `${avgCarbon.toFixed(1)} tons`,
+                target: metricData[timeRange].target, // Keep existing target
+              };
+              
+              setData(updatedData);
+            }
+          } catch (error) {
+            console.error("Supabase error:", error);
+            // If error fetching, we'll just use the default data
           }
-        } catch (error) {
-          console.error("Supabase error:", error);
-          setError("Failed to fetch carbon data");
-          // Keep using provided metric data if database query fails
         }
       } catch (err) {
         console.error('Failed to load carbon data:', err);
@@ -141,9 +169,10 @@ export function CarbonFootprint({ timeRange, Icon, iconColor, metricData = defau
     };
 
     fetchCarbonData();
-  }, [timeRange, metricData]);
+  }, [timeRange, metricData, building, carbonFactor]);
 
-  const isPositiveChange = parseFloat(data.change) > 0;
+  // Use the utility function to safely check if change is positive
+  const positive = isPositiveChange(data.change);
 
   return (
     <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200 hover:shadow-md transition-shadow">
@@ -158,12 +187,12 @@ export function CarbonFootprint({ timeRange, Icon, iconColor, metricData = defau
         {!isLoading && (
           <span
             className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-sm font-medium ${
-              isPositiveChange 
+              positive
                 ? "bg-red-100 text-red-800" 
                 : "bg-green-100 text-green-800"
             }`}
           >
-            {isPositiveChange ? 
+            {positive ? 
               <TrendingUp className="w-3 h-3 mr-1" /> : 
               <TrendingDown className="w-3 h-3 mr-1" />
             }

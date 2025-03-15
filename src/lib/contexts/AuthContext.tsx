@@ -1,42 +1,41 @@
-// src/lib/contexts/AuthContext.tsx
 'use client';
 
 import { createContext, useContext, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import type { AuthError, User, Session } from '@supabase/supabase-js';
-import {
-  signIn,
-  signUp,
-  signOut,
-  getSession,
-  getUser,
-  resetPassword,
-  updatePassword,
-} from '../services/authService';
+import { supabase } from '../supabase/client';
+import type { AuthChangeEvent, AuthError, Session, User as SupabaseUser } from '@supabase/supabase-js';
+import type { AuthState, LoginCredentials, RegisterCredentials, User } from '@/types/auth';
 
-interface AuthState {
-  user: User | null;
-  session: Session | null;
-  isLoading: boolean;
+interface SignUpResponse {
+  error: AuthError | null;
+  emailConfirmationRequired?: boolean;
+  user?: SupabaseUser | null;
 }
-
-type AuthErrorType = AuthError | null;
 
 interface AuthContextType extends AuthState {
-  signIn: (credentials: { email: string; password: string }) => Promise<{ error: AuthErrorType }>;
-  signUp: (credentials: {
-    email: string;
-    password: string;
-    full_name: string;
-    organization_name?: string;
-  }) => Promise<{ error: AuthErrorType }>;
-  signOut: () => Promise<{ error: AuthErrorType }>;
-  resetPassword: (email: string) => Promise<{ error: AuthErrorType }>;
-  updatePassword: (newPassword: string) => Promise<{ error: AuthErrorType }>;
+  signIn: (credentials: LoginCredentials) => Promise<{ error: AuthError | null }>;
+  signUp: (credentials: RegisterCredentials) => Promise<SignUpResponse>;
+  signOut: () => Promise<{ error: AuthError | null }>;
+  resetPassword: (email: string) => Promise<{ error: AuthError | null }>;
+  updatePassword: (newPassword: string) => Promise<{ error: AuthError | null }>;
 }
 
-// Create the context
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+// Helper function to convert Supabase User to our custom User type
+const mapSupabaseUser = (supabaseUser: SupabaseUser | null): User | null => {
+  if (!supabaseUser) return null;
+  
+  return {
+    id: supabaseUser.id,
+    email: supabaseUser.email || '',
+    full_name: supabaseUser.user_metadata?.full_name,
+    created_at: supabaseUser.created_at,
+    updated_at: supabaseUser.updated_at || supabaseUser.created_at,
+    organization_id: supabaseUser.user_metadata?.organization_id
+  };
+};
+
+// Create the context and export it - this is critical for useContext to work
+export const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 // Provider component
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -50,68 +49,103 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     console.log('Auth context initializing');
     
+    // Initialize auth state
     const initializeAuth = async () => {
       try {
-        console.log('Fetching auth session...');
-        const { data, error: sessionError } = await getSession();
+        // Get the current session
+        const { data, error: sessionError } = await supabase.auth.getSession();
         
         if (sessionError) {
           console.error('Session error:', sessionError);
-          throw sessionError;
+          setState({ user: null, session: null, isLoading: false });
+          return;
         }
 
         console.log('Session data:', data);
 
+        // Update state with session data
         if (data?.session) {
-          console.log('Session found, fetching user...');
-          const { data: userData, error: userError } = await getUser();
-          
-          if (userError) {
-            console.error('User error:', userError);
-            throw userError;
-          }
-
-          console.log('User data:', userData);
-
+          const mappedUser = mapSupabaseUser(data.session.user);
           setState({
-            user: userData.user,
+            user: mappedUser,
             session: data.session,
             isLoading: false,
           });
-          console.log('Auth state updated with user');
+          console.log('Auth state updated with user', mappedUser?.id);
         } else {
           console.log('No session found, updating loading state');
-          setState((prev) => ({ ...prev, isLoading: false }));
+          setState({ user: null, session: null, isLoading: false });
         }
       } catch (error) {
         console.error('Auth initialization error:', error);
-        setState((prev) => ({ ...prev, isLoading: false }));
+        setState({ user: null, session: null, isLoading: false });
       }
     };
 
+    // Setup auth state change listener
+    const { data: authListener } = supabase.auth.onAuthStateChange(
+      (event: AuthChangeEvent, session) => {
+        console.log('Auth state change:', event, session?.user?.id);
+        
+        switch (event) {
+          case 'SIGNED_IN':
+          case 'TOKEN_REFRESHED':
+          case 'USER_UPDATED':
+            const mappedUser = mapSupabaseUser(session?.user || null);
+            setState({
+              user: mappedUser,
+              session: session,
+              isLoading: false,
+            });
+            break;
+          
+          case 'SIGNED_OUT':
+            setState({
+              user: null,
+              session: null,
+              isLoading: false,
+            });
+            break;
+        }
+      }
+    );
+    
+    // Initialize the auth state
     initializeAuth();
+    
+    // Cleanup the listener on unmount
+    return () => {
+      authListener.subscription.unsubscribe();
+    };
   }, []);
 
-  const handleSignIn = async ({ email, password }: { email: string; password: string }) => {
+  const handleSignIn = async (credentials: LoginCredentials) => {
     try {
-      console.log('Attempting sign in for:', email);
-      const { data, error } = await signIn({ email, password });
+      console.log('Attempting sign in for:', credentials.email);
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: credentials.email,
+        password: credentials.password,
+      });
       
       if (error) {
         console.error('Sign in error:', error);
-        throw error;
+        return { error };
       }
 
-      if (data?.session) {
-        console.log('Sign in successful, updating state');
+      console.log('Sign in successful, session established:', data.session?.user?.id);
+      
+      // Update state immediately to prevent race conditions
+      if (data.session) {
+        const mappedUser = mapSupabaseUser(data.session.user);
         setState({
-          user: data.session.user,
+          user: mappedUser,
           session: data.session,
           isLoading: false,
         });
-        console.log('Redirecting to dashboard...');
+        
         router.push('/dashboard');
       }
+      
       return { error: null };
     } catch (error) {
       console.error('Sign in exception:', error);
@@ -119,46 +153,45 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const handleSignUp = async ({
-    email,
-    password,
-    full_name,
-    organization_name,
-  }: {
-    email: string;
-    password: string;
-    full_name: string;
-    organization_name?: string;
-  }) => {
+  const handleSignUp = async (credentials: RegisterCredentials) => {
     try {
-      console.log('Attempting sign up for:', email);
-      const { data, error } = await signUp({
-        email,
-        password,
-        full_name,
-        organization_name,
+      console.log('Attempting sign up for:', credentials.email);
+      const { data, error } = await supabase.auth.signUp({
+        email: credentials.email,
+        password: credentials.password,
+        options: {
+          data: {
+            full_name: credentials.full_name,
+            organization_name: credentials.organization_name
+          }
+        }
       });
       
       if (error) {
         console.error('Sign up error:', error);
-        throw error;
+        return { error };
       }
 
       console.log('Sign up response:', data);
+      
+      // Check if email confirmation is required (no session means confirmation required)
+      const emailConfirmationRequired = !data.session;
 
-      if (data?.session) {
-        console.log('Sign up successful with session, updating state');
+      // If auto-confirmation is enabled and we have a session
+      if (data.session) {
+        const mappedUser = mapSupabaseUser(data.session.user);
         setState({
-          user: data.session.user,
+          user: mappedUser,
           session: data.session,
           isLoading: false,
         });
-        console.log('Redirecting to dashboard...');
-        router.push('/dashboard');
-      } else {
-        console.log('Sign up successful, email confirmation may be required');
       }
-      return { error: null };
+      
+      return { 
+        error: null, 
+        emailConfirmationRequired,
+        user: data.user
+      };
     } catch (error) {
       console.error('Sign up exception:', error);
       return { error: error as AuthError };
@@ -168,11 +201,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const handleSignOut = async () => {
     try {
       console.log('Attempting sign out');
-      const { error } = await signOut();
+      const { error } = await supabase.auth.signOut();
       
       if (error) {
         console.error('Sign out error:', error);
-        throw error;
+        return { error };
       }
 
       console.log('Sign out successful, clearing state');
@@ -181,8 +214,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         session: null,
         isLoading: false,
       });
-      console.log('Redirecting to login...');
-      router.push('/auth/login');
+      
+      router.push('/login');
       return { error: null };
     } catch (error) {
       console.error('Sign out exception:', error);
@@ -193,11 +226,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const handleResetPassword = async (email: string) => {
     try {
       console.log('Attempting password reset for:', email);
-      const { error } = await resetPassword(email);
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/auth/reset-password`,
+      });
       
       if (error) {
         console.error('Password reset error:', error);
-        throw error;
+        return { error };
       }
       
       console.log('Password reset email sent');
@@ -211,11 +246,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const handleUpdatePassword = async (newPassword: string) => {
     try {
       console.log('Attempting password update');
-      const { error } = await updatePassword(newPassword);
+      const { error } = await supabase.auth.updateUser({
+        password: newPassword
+      });
       
       if (error) {
         console.error('Password update error:', error);
-        throw error;
+        return { error };
       }
       
       console.log('Password updated successfully');
@@ -236,13 +273,4 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
-}
-
-// Export the useAuth hook
-export function useAuth() {
-  const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
 }

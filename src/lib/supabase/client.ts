@@ -13,24 +13,6 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   },
 });
 
-// Helper function for password reset
-export const resetPassword = async (email: string) => {
-  const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: `${window.location.origin}/auth/reset-password`,
-  });
-  
-  return { data, error };
-};
-
-// Helper function to update password
-export const updatePassword = async (newPassword: string) => {
-  const { data, error } = await supabase.auth.updateUser({
-    password: newPassword
-  });
-
-  return { data, error };
-};
-
 // Types for metrics data
 export interface Metric {
   id?: number;
@@ -46,6 +28,7 @@ export interface Metric {
   notes?: string | null;
   created_at?: string;
   updated_at?: string;
+  user_id?: string;  // Add user_id field for RLS
 }
 
 export interface ConsumptionData {
@@ -54,7 +37,7 @@ export interface ConsumptionData {
   average_consumption: number;
 }
 
-// Helper function to fetch metrics data
+// Helper function to fetch metrics data with user_id
 export async function fetchMetrics({
   facility,
   metricName,
@@ -83,11 +66,23 @@ export async function fetchMetrics({
   return data as Metric[];
 }
 
-// Helper function to insert a single metric
+// Helper function to insert a single metric with current user's ID
 export async function insertMetric(metric: Omit<Metric, 'id' | 'created_at' | 'updated_at'>) {
+  // Get the current user
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) {
+    throw new Error("You must be logged in to insert metrics");
+  }
+
+  const metricWithUser = {
+    ...metric,
+    user_id: user.id
+  };
+
   const { data, error } = await supabase
     .from('metrics')
-    .insert([metric])
+    .insert([metricWithUser])
     .select();
 
   if (error) {
@@ -98,11 +93,23 @@ export async function insertMetric(metric: Omit<Metric, 'id' | 'created_at' | 'u
   return data;
 }
 
-// Helper function to insert multiple metrics
+// Helper function to insert multiple metrics with current user's ID
 export async function insertMetrics(metrics: Omit<Metric, 'id' | 'created_at' | 'updated_at'>[]) {
+  // Get the current user
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) {
+    throw new Error("You must be logged in to insert metrics");
+  }
+
+  const metricsWithUser = metrics.map(metric => ({
+    ...metric,
+    user_id: user.id
+  }));
+
   const { data, error } = await supabase
     .from('metrics')
-    .insert(metrics)
+    .insert(metricsWithUser)
     .select();
 
   if (error) {

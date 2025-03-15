@@ -1,4 +1,3 @@
-// src/types/auth.ts
 import type { Session } from '@supabase/supabase-js'
 
 export interface User {
@@ -8,6 +7,12 @@ export interface User {
   created_at: string
   updated_at: string
   organization_id?: string
+  user_metadata?: {
+    full_name?: string
+    avatar_url?: string
+    organization_name?: string
+    [key: string]: any
+  }
 }
 
 export interface AuthState {

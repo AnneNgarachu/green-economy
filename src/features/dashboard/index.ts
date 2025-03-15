@@ -1,16 +1,7 @@
-// src/features/dashboard/components/index.ts
-// Export all dashboard components
-
-import { EnergyUsage } from './components/EnergyUsage'
-import { WaterConsumption } from './components/WaterConsumption'
-import { MetricsOverview } from './components/MetricsOverview'
-import { CarbonFootprint } from './components/CarbonFootprint'
-import { SustainabilityMetrics } from './components/SustainabilityMetrics'
-
-export {
-  EnergyUsage,
-  WaterConsumption,
-  MetricsOverview,
-  CarbonFootprint,
-  SustainabilityMetrics
-}
+// src/features/dashboard/index.ts
+export { EnergyUsage } from './components/EnergyUsage';
+export { WaterConsumption } from './components/WaterConsumption';
+export { MetricsOverview } from './components/MetricsOverview';
+export { CarbonFootprint } from './components/CarbonFootprint';
+export { SustainabilityMetrics } from './components/SustainabilityMetrics';
+export { BuildingSelector } from './components/BuildingSelector';

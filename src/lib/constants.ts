@@ -1,47 +1,42 @@
-// lib/constants.ts
+// src/lib/constants.ts
 export const FACILITIES = {
-    TALBOT_HOUSE: 'Talbot House',
-    KIMMERIDGE_HOUSE: 'Kimmeridge House',
-    POOLE_GATEWAY: 'Poole Gateway',
-    CHAPEL_GATE: 'Chapel Gate',
-  } as const;
-  
-  export const METRICS = {
-    ELECTRICITY: 'electricity_usage',
-    WATER: 'water_usage',
-    GAS: 'gas_usage',
-  } as const;
-  
-  export const UNITS = {
-    ELECTRICITY: 'kWh',
-    WATER: 'm³',
-    GAS: 'm³',
-  } as const;
-  
-  // Type definitions
-  export type FacilityName = (typeof FACILITIES)[keyof typeof FACILITIES];
-  export type MetricName = (typeof METRICS)[keyof typeof METRICS];
-  export type UnitName = (typeof UNITS)[keyof typeof UNITS];
-  
-  // Now define the Metric interface
-  export interface Metric {
-    id?: number;
-    reading_date: string;
-    facility: string;
-    meter_code: string;
-    meter_name: string;
-    metric_name: MetricName;
-    value: number;
-    unit: UnitName;
-    reading_type: string;
-    source_file?: string | null;
-    notes?: string | null;
-    created_at?: string;
-    updated_at?: string;
-  }
-  
-  export interface ConsumptionData {
-    total_consumption: number;
-    peak_consumption: number;
-    average_consumption: number;
-  }
+  TALBOT_HOUSE: 'Talbot House',
+  KIMMERIDGE_HOUSE: 'Kimmeridge House',
+  POOLE_GATEWAY: 'Poole Gateway',
+  CHAPEL_GATE: 'Chapel Gate',
+} as const;
+
+export const METRICS = {
+  ELECTRICITY: 'electricity_usage',
+  WATER: 'water_usage',
+  GAS: 'gas_usage',
+  WASTE: 'waste_generation',
+  CARBON: 'carbon_emissions'
+} as const;
+
+export const UNITS = {
+  ELECTRICITY: 'kWh',
+  WATER: 'm³',
+  GAS: 'm³',
+  WASTE: 'kg',
+  CARBON: 'tons'
+} as const;
+
+// Type definitions
+export type FacilityName = (typeof FACILITIES)[keyof typeof FACILITIES];
+export type MetricName = (typeof METRICS)[keyof typeof METRICS];
+export type UnitName = (typeof UNITS)[keyof typeof UNITS];
+
+// Carbon calculation factors
+export const CARBON_FACTORS = {
+  ELECTRICITY: 0.233, // kg CO2e per kWh (UK 2023)
+  GAS: 0.184, // kg CO2e per kWh
+  WATER: 0.344, // kg CO2e per m³
+}
+
+// Cost rates (£)
+export const COST_RATES = {
+  ELECTRICITY: 0.21, // £ per kWh
+  GAS: 0.058, // £ per kWh
+  WATER: 2.5 // £ per m³
+}

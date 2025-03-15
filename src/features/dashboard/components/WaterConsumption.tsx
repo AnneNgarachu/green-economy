@@ -2,13 +2,13 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { MetricProps, MetricDataByTimeRange } from '@/features/dashboard/type';
+import { MetricProps } from '@/features/dashboard/type';
 import { supabase } from '@/lib/supabase/client';
 import { METRICS } from '@/lib/constants';
 import { TrendingDown, TrendingUp, Loader2 } from 'lucide-react';
 
-// Define the mock data explicitly as MetricDataByTimeRange
-const defaultMetricData: MetricDataByTimeRange = {
+// Define the mock data explicitly
+const defaultMetricData = {
   "24h": {
     current: "2000 L",
     previous: "1945 L",
@@ -35,15 +35,22 @@ const defaultMetricData: MetricDataByTimeRange = {
   },
 };
 
-export function WaterConsumption({ timeRange, Icon, iconColor, metricData = defaultMetricData }: MetricProps) {
+export function WaterConsumption({ 
+  timeRange, 
+  Icon, 
+  iconColor, 
+  metricData = defaultMetricData,
+  building = 'All Buildings'
+}: MetricProps) {
   const [data, setData] = useState(metricData[timeRange]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [buildingName, setBuildingName] = useState("All Buildings");
+  const [buildingName, setBuildingName] = useState(building);
 
   useEffect(() => {
     // Reset to the provided metric data first
     setData(metricData[timeRange]);
+    setBuildingName(building);
     
     const fetchWaterData = async () => {
       setIsLoading(true);
@@ -69,55 +76,55 @@ export function WaterConsumption({ timeRange, Icon, iconColor, metricData = defa
           startDate = oneMonthAgo.toISOString().split('T')[0];
         }
 
-        // Try to fetch data for Talbot House
-        try {
-          const { data: metricsData, error: supabaseError } = await supabase
-            .from('metrics')
-            .select('*')
-            .eq('facility', 'Talbot House')
-            .eq('metric_name', METRICS.WATER) // Using constant instead of string
-            .gte('reading_date', startDate)
-            .lte('reading_date', endDate)
-            .order('reading_date', { ascending: true });
+        // Try to fetch data for specific building
+        if (building !== 'All Buildings') {
+          try {
+            const { data: metricsData, error: supabaseError } = await supabase
+              .from('metrics')
+              .select('*')
+              .eq('facility', building)
+              .eq('metric_name', METRICS.WATER)
+              .gte('reading_date', startDate)
+              .lte('reading_date', endDate)
+              .order('reading_date', { ascending: true });
 
-          if (supabaseError) throw supabaseError;
+            if (supabaseError) throw supabaseError;
 
-          if (metricsData && metricsData.length > 0) {
-            // Calculate metrics from the data
-            const totalConsumption = metricsData.reduce((sum, item) => sum + item.value, 0);
-            const peakConsumption = Math.max(...metricsData.map(item => item.value));
-            const avgConsumption = totalConsumption / metricsData.length;
-            
-            // Calculate previous period for comparison
-            const halfwayIndex = Math.floor(metricsData.length / 2);
-            const currentPeriodData = metricsData.slice(halfwayIndex);
-            const previousPeriodData = metricsData.slice(0, halfwayIndex);
-            
-            const currentTotal = currentPeriodData.reduce((sum, item) => sum + item.value, 0);
-            const previousTotal = previousPeriodData.reduce((sum, item) => sum + item.value, 0);
-            
-            // Calculate percent change
-            const percentChange = previousTotal !== 0 
-              ? ((currentTotal - previousTotal) / previousTotal * 100).toFixed(1)
-              : "0.0";
+            if (metricsData && metricsData.length > 0) {
+              // Calculate metrics from the data
+              const totalConsumption = metricsData.reduce((sum, item) => sum + item.value, 0);
+              const peakConsumption = Math.max(...metricsData.map(item => item.value));
+              const avgConsumption = totalConsumption / metricsData.length;
               
-            // Format the data for display
-            const updatedData = {
-              current: `${Math.round(totalConsumption)} L`,
-              previous: `${Math.round(previousTotal)} L`,
-              change: `${percentChange}%`,
-              peak: `${Math.round(peakConsumption)} L`,
-              average: `${Math.round(avgConsumption)} L`,
-              target: metricData[timeRange].target, // Keep existing target
-            };
-            
-            setData(updatedData);
-            setBuildingName("Talbot House");
+              // Calculate previous period for comparison
+              const halfwayIndex = Math.floor(metricsData.length / 2);
+              const currentPeriodData = metricsData.slice(halfwayIndex);
+              const previousPeriodData = metricsData.slice(0, halfwayIndex);
+              
+              const currentTotal = currentPeriodData.reduce((sum, item) => sum + item.value, 0);
+              const previousTotal = previousPeriodData.reduce((sum, item) => sum + item.value, 0);
+              
+              // Calculate percent change
+              const percentChange = previousTotal !== 0 
+                ? ((currentTotal - previousTotal) / previousTotal * 100).toFixed(1)
+                : "0.0";
+                
+              // Format the data for display
+              const updatedData = {
+                current: `${Math.round(totalConsumption)} L`,
+                previous: `${Math.round(previousTotal)} L`,
+                change: `${percentChange.startsWith('-') ? '' : '+'}${percentChange}%`,
+                peak: `${Math.round(peakConsumption)} L`,
+                average: `${Math.round(avgConsumption)} L`,
+                target: metricData[timeRange].target, // Keep existing target
+              };
+              
+              setData(updatedData);
+            }
+          } catch (error) {
+            console.error("Supabase error:", error);
+            // If error fetching, we'll just use the default data
           }
-        } catch (error) {
-          console.error("Supabase error:", error);
-          setError("Failed to fetch water data");
-          // Keep using provided metric data if database query fails
         }
       } catch (err) {
         console.error('Failed to load water data:', err);
@@ -128,9 +135,10 @@ export function WaterConsumption({ timeRange, Icon, iconColor, metricData = defa
     };
 
     fetchWaterData();
-  }, [timeRange, metricData]);
+  }, [timeRange, metricData, building]);
 
-  const isPositiveChange = parseFloat(data.change) > 0;
+  // Safely determine if change is positive with checking startsWith instead of parsing
+  const isPositiveChange = data.change.startsWith('+');
 
   return (
     <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200 hover:shadow-md transition-shadow">

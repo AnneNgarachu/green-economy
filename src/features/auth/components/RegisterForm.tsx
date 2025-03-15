@@ -1,11 +1,12 @@
 'use client'
 
 import { useState, FormEvent, ChangeEvent } from 'react'
+import { useRouter } from 'next/navigation'
 import { AlertCircle, Eye, EyeOff, CheckCircle } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Alert, AlertDescription } from '@/components/ui/Alert'
-import { useAuth } from '@/lib/contexts/AuthContext'
+import { useAuth } from '@/hooks/useAuth'
 import { PasswordStrength } from './PasswordStrength'
 import type { RegisterCredentials } from '@/types/auth'
 
@@ -15,7 +16,8 @@ interface FormData extends RegisterCredentials {
 }
 
 export const RegisterForm = () => {
-  const { signUp } = useAuth()
+  const { signUp, signIn } = useAuth()
+  const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
   const [formSuccess, setFormSuccess] = useState<string | null>(null)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
@@ -79,12 +81,22 @@ export const RegisterForm = () => {
         full_name: formData.full_name,
       }
 
-      const { error } = await signUp(credentials)
+      // First, sign up the user
+      const { error: signUpError, emailConfirmationRequired = true } = await signUp(credentials)
       
-      if (error) {
-        setErrorMessage(error.message || 'Registration failed')
-      } else {
-        setFormSuccess('Registration successful! Please check your email to verify your account.')
+      if (signUpError) {
+        setErrorMessage(signUpError.message || 'Registration failed')
+        setIsLoading(false)
+        return
+      }
+
+      if (emailConfirmationRequired) {
+        // Email confirmation is required
+        setFormSuccess(
+          'Registration successful! Please check your email to confirm your account before signing in.'
+        )
+        
+        // Reset form fields
         setFormData({
           email: '',
           password: '',
@@ -93,12 +105,44 @@ export const RegisterForm = () => {
           organization_name: '',
         })
         
+        // Switch to login tab after delay
         setTimeout(() => {
-          document.getElementById('login-tab')?.click();
-        }, 3000)
+          document.getElementById('login-tab')?.click()
+        }, 5000)
+      } else {
+        // No email confirmation required, auto login should work
+        setFormSuccess('Registration successful! Signing you in...')
+        
+        // Try automatic sign in
+        const { error: signInError } = await signIn({
+          email: formData.email,
+          password: formData.password
+        })
+        
+        if (signInError) {
+          console.error('Auto sign-in failed:', signInError)
+          // If auto-login fails, still show success but with login prompt
+          setFormSuccess('Registration successful! Please sign in with your credentials.')
+          
+          // Reset form fields
+          setFormData({
+            email: '',
+            password: '',
+            confirmPassword: '',
+            full_name: '',
+            organization_name: '',
+          })
+          
+          setTimeout(() => {
+            document.getElementById('login-tab')?.click()
+          }, 3000)
+        } else {
+          // Router push is handled by signin success in AuthContext
+          console.log('Auto sign-in successful!')
+        }
       }
     } catch (error) {
-      console.error(error)
+      console.error('Registration exception:', error)
       setErrorMessage('An unexpected error occurred during registration')
     } finally {
       setIsLoading(false)

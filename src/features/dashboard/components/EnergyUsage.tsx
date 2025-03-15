@@ -2,14 +2,30 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { MetricProps, MetricDataByTimeRange } from '@/features/dashboard/type';
+import { MetricProps } from '../type';
 import { supabase } from '@/lib/supabase/client';
 import { METRICS } from '@/lib/constants';
 import { TrendingDown, TrendingUp, Loader2 } from 'lucide-react';
+import { isPositiveChange } from '@/lib/utils/index'; // Fixed import path
 
-// Define the mock data explicitly as MetricDataByTimeRange
-// This ensures TypeScript knows the exact shape it should have
-const defaultMetricData: MetricDataByTimeRange = {
+// Define an interface for the data shape returned from Supabase
+interface MetricRecord {
+  id: number;
+  reading_date: string;
+  facility: string;
+  meter_code: string;
+  meter_name: string;
+  metric_name: string;
+  value: number;
+  unit: string;
+  reading_type: string;
+  source_file?: string | null;
+  notes?: string | null;
+  created_at?: string;
+  updated_at?: string;
+}
+
+const defaultMetricData = {
   "24h": {
     current: "450 kWh",
     previous: "475 kWh",
@@ -36,17 +52,24 @@ const defaultMetricData: MetricDataByTimeRange = {
   },
 };
 
-export function EnergyUsage({ timeRange, Icon, iconColor, metricData = defaultMetricData }: MetricProps) {
+export function EnergyUsage({ 
+  timeRange, 
+  Icon, 
+  iconColor, 
+  metricData = defaultMetricData,
+  building = 'All Buildings'
+}: MetricProps) {
   const [data, setData] = useState(metricData[timeRange]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [buildingName, setBuildingName] = useState("All Buildings");
+  const [buildingName, setBuildingName] = useState(building);
 
   useEffect(() => {
     // Reset to the provided metric data first
     setData(metricData[timeRange]);
+    setBuildingName(building);
     
-    const fetchElectricityData = async () => {
+    const fetchEnergyData = async () => {
       setIsLoading(true);
       setError(null);
       
@@ -70,68 +93,82 @@ export function EnergyUsage({ timeRange, Icon, iconColor, metricData = defaultMe
           startDate = oneMonthAgo.toISOString().split('T')[0];
         }
 
-        // Try to fetch data for Talbot House
-        try {
-          const { data: metricsData, error: supabaseError } = await supabase
-            .from('metrics')
-            .select('*')
-            .eq('facility', 'Talbot House')
-            .eq('metric_name', METRICS.ELECTRICITY) // Using constant instead of string
-            .gte('reading_date', startDate)
-            .lte('reading_date', endDate)
-            .order('reading_date', { ascending: true });
+        // Try to fetch data for specific building
+        if (building !== 'All Buildings') {
+          try {
+            const { data: metricsData, error: supabaseError } = await supabase
+              .from('metrics')
+              .select('*')
+              .eq('facility', building)
+              .eq('metric_name', METRICS.ELECTRICITY)
+              .gte('reading_date', startDate)
+              .lte('reading_date', endDate)
+              .order('reading_date', { ascending: true });
 
-          if (supabaseError) throw supabaseError;
+            if (supabaseError) throw supabaseError;
 
-          if (metricsData && metricsData.length > 0) {
-            // Calculate metrics from the data
-            const totalConsumption = metricsData.reduce((sum, item) => sum + item.value, 0);
-            const peakConsumption = Math.max(...metricsData.map(item => item.value));
-            const avgConsumption = totalConsumption / metricsData.length;
-            
-            // Calculate previous period for comparison
-            const halfwayIndex = Math.floor(metricsData.length / 2);
-            const currentPeriodData = metricsData.slice(halfwayIndex);
-            const previousPeriodData = metricsData.slice(0, halfwayIndex);
-            
-            const currentTotal = currentPeriodData.reduce((sum, item) => sum + item.value, 0);
-            const previousTotal = previousPeriodData.reduce((sum, item) => sum + item.value, 0);
-            
-            // Calculate percent change
-            const percentChange = previousTotal !== 0 
-              ? ((currentTotal - previousTotal) / previousTotal * 100).toFixed(1)
-              : "0.0";
+            if (metricsData && metricsData.length > 0) {
+              // Cast to our known type to ensure type safety
+              const typedData = metricsData as unknown as MetricRecord[];
               
-            // Format the data for display
-            const updatedData = {
-              current: `${Math.round(totalConsumption)} kWh`,
-              previous: `${Math.round(previousTotal)} kWh`,
-              change: `${percentChange}%`,
-              peak: `${Math.round(peakConsumption)} kWh`,
-              average: `${Math.round(avgConsumption)} kWh`,
-              target: metricData[timeRange].target, // Keep existing target
-            };
-            
-            setData(updatedData);
-            setBuildingName("Talbot House");
+              // Calculate metrics from the data
+              const totalConsumption = typedData.reduce((sum, item) => sum + item.value, 0);
+              
+              // Get daily values for peak calculation
+              const dailyData = typedData.reduce((acc, item) => {
+                const date = item.reading_date.split('T')[0];
+                if (!acc[date]) acc[date] = 0;
+                acc[date] += item.value;
+                return acc;
+              }, {} as Record<string, number>);
+              
+              const dailyValues = Object.values(dailyData);
+              const peakConsumption = Math.max(...dailyValues);
+              const avgConsumption = totalConsumption / Object.keys(dailyData).length;
+              
+              // Calculate previous period for comparison
+              const halfwayIndex = Math.floor(typedData.length / 2);
+              const currentPeriodData = typedData.slice(halfwayIndex);
+              const previousPeriodData = typedData.slice(0, halfwayIndex);
+              
+              const currentTotal = currentPeriodData.reduce((sum, item) => sum + item.value, 0);
+              const previousTotal = previousPeriodData.reduce((sum, item) => sum + item.value, 0);
+              
+              // Calculate percent change
+              const percentChange = previousTotal !== 0 
+                ? ((currentTotal - previousTotal) / previousTotal * 100).toFixed(1)
+                : "0.0";
+                
+              // Format the data for display
+              const updatedData = {
+                current: `${Math.round(totalConsumption)} kWh`,
+                previous: `${Math.round(previousTotal)} kWh`,
+                change: `${percentChange}%`,
+                peak: `${Math.round(peakConsumption)} kWh`,
+                average: `${Math.round(avgConsumption)} kWh`,
+                target: metricData[timeRange].target, // Keep existing target
+              };
+              
+              setData(updatedData);
+            }
+          } catch (error) {
+            console.error("Supabase error:", error);
+            // If error fetching, we'll just use the default data
           }
-        } catch (error) {
-          console.error("Supabase error:", error);
-          setError("Failed to fetch energy data");
-          // Keep using provided metric data if database query fails
         }
       } catch (err) {
-        console.error('Failed to load electricity data:', err);
+        console.error('Failed to load energy data:', err);
         setError("An error occurred while loading data");
       } finally {
         setIsLoading(false);
       }
     };
 
-    fetchElectricityData();
-  }, [timeRange, metricData]);
+    fetchEnergyData();
+  }, [timeRange, metricData, building]);
 
-  const isPositiveChange = parseFloat(data.change) > 0;
+  // Use the utility function to safely check if change is positive
+  const positive = isPositiveChange(data.change);
 
   return (
     <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200 hover:shadow-md transition-shadow">
@@ -140,18 +177,18 @@ export function EnergyUsage({ timeRange, Icon, iconColor, metricData = defaultMe
           <Icon className={`w-6 h-6 ${iconColor}`} />
           <div>
             <h2 className="text-lg font-semibold text-black">Energy Usage</h2>
-            <p className="text-sm text-gray-500">{buildingName}</p>
+            <p className="text-xs text-gray-500">{buildingName}</p>
           </div>
         </div>
         {!isLoading && (
           <span
             className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-sm font-medium ${
-              isPositiveChange 
+              positive 
                 ? "bg-red-100 text-red-800" 
                 : "bg-green-100 text-green-800"
             }`}
           >
-            {isPositiveChange ? 
+            {positive ? 
               <TrendingUp className="w-3 h-3 mr-1" /> : 
               <TrendingDown className="w-3 h-3 mr-1" />
             }
